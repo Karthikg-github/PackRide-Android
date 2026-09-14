@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "951552265500",
+    "firebase_url": "https://packride-6f5ab-default-rtdb.firebaseio.com",
+    "project_id": "packride-6f5ab",
+    "storage_bucket": "packride-6f5ab.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:951552265500:android:097120c217890936bdbed9",
+        "android_client_info": {
+          "package_name": "com.karthik.packride"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAX1CqdNwOW1pP7px1Pk8IqPd3TKv4ubzU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

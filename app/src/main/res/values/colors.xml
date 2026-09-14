@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="pr_coral">#FFE85A4F</color>
+    <color name="pr_teal">#FF2BBBAD</color>
+    <color name="pr_bg">#FFF7F5F2</color>
+    <color name="pr_ink">#FF1A1A1A</color>
+    <color name="ic_launcher_background">#FFE85A4F</color>
+</resources>

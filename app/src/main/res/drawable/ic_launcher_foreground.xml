@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sep 3, 2026 — replaces the leftover Android Studio placeholder glyph
+     (two generic block letters) with a motorcycle silhouette, matching
+     iOS's Image(systemName: "motorcycle") app-loading mark (see
+     PackRideApp.swift) instead of a shape that had nothing to do with the
+     app. Background stays the existing brand coral (colors.xml
+     ic_launcher_background) — only the foreground glyph changes. Kept
+     inside the ~66dp adaptive-icon safe zone (viewport is 108x108) so
+     nothing gets clipped by round/squircle icon masks. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Rear wheel -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M20,66 a13,13 0 1,0 26,0 a13,13 0 1,0 -26,0 Z M27,66 a6,6 0 1,0 12,0 a6,6 0 1,0 -12,0 Z"
+        android:fillType="evenOdd"/>
+    <!-- Front wheel -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M62,66 a13,13 0 1,0 26,0 a13,13 0 1,0 -26,0 Z M69,66 a6,6 0 1,0 12,0 a6,6 0 1,0 -12,0 Z"
+        android:fillType="evenOdd"/>
+    <!-- Frame: seat -> rear wheel, seat -> engine, engine -> front wheel -->
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="6.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M44,42 L33,66 M44,42 L60,46 M60,46 L75,66"/>
+    <!-- Handlebar -->
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="5"
+        android:strokeLineCap="round"
+        android:pathData="M60,46 L54,30 M48,28 L60,30"/>
+    <!-- Seat / tank -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M36,38 h16 a5,5 0 0,1 5,5 v2 h-26 v-2 a5,5 0 0,1 5,-5 Z"/>
+</vector>

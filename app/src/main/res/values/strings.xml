@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">PackRide</string>
+    <string name="location_service_channel">Ride tracking</string>
+    <string name="location_service_title">PackRide is tracking your ride</string>
+    <string name="location_service_text">GPS active for live tracking and safety features</string>
+</resources>
