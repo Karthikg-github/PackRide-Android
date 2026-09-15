@@ -246,7 +246,8 @@ class RideFeedManager(context: Context) {
                             userID = data["userID"] as? String ?: continue,
                             userName = data["userName"] as? String ?: "Rider",
                             text = data["text"] as? String ?: continue,
-                            timestamp = (data["timestamp"] as? Number)?.toDouble() ?: 0.0
+                            timestamp = (data["timestamp"] as? Number)?.toDouble() ?: 0.0,
+                            avatarURL = data["avatarURL"] as? String ?: ""
                         )
                     )
                 }
@@ -259,13 +260,14 @@ class RideFeedManager(context: Context) {
         commentListeners[postID] = l
     }
 
-    fun addComment(postID: String, userName: String, text: String) {
+    fun addComment(postID: String, userName: String, text: String, avatarURL: String = "") {
         if (myID.isEmpty() || text.isBlank()) return
         val data = mapOf(
             "userID" to myID,
             "userName" to userName,
             "text" to text.trim(),
-            "timestamp" to System.currentTimeMillis() / 1000.0
+            "timestamp" to System.currentTimeMillis() / 1000.0,
+            "avatarURL" to avatarURL
         )
         db.child("feedPosts").child(postID).child("comments").push().setValue(data)
     }

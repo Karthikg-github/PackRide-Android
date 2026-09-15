@@ -7,7 +7,8 @@ data class FeedComment(
     val userID: String,
     val userName: String,
     val text: String,
-    val timestamp: Double
+    val timestamp: Double,
+    val avatarURL: String = ""
 )
 
 data class FeedPost(

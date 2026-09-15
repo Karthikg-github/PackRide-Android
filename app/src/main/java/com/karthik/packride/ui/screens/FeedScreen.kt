@@ -302,10 +302,12 @@ fun FeedScreen(auth: AuthManager) {
             post = post,
             comments = commentsMap[post.id].orEmpty(),
             draft = draft,
+            currentAvatarURL = auth.prefsSnapshot.avatarURL,
             onDraftChange = { draft = it },
+            isMyComment = { comment -> feed.myKnownIDs.contains(comment.userID) },
             canDeleteComment = { comment -> feed.myKnownIDs.contains(comment.userID) || feed.myKnownIDs.contains(post.authorID) },
             onPost = {
-                feed.addComment(post.id, auth.prefsSnapshot.riderName, draft)
+                feed.addComment(post.id, auth.prefsSnapshot.riderName, draft, auth.prefsSnapshot.avatarURL)
                 draft = ""
             },
             onDeleteComment = { comment, onDone -> feed.deleteComment(post.id, comment.id, onDone) },
@@ -855,6 +857,14 @@ private fun FeedRideDetail(post: FeedPost, onBack: () -> Unit) {
                 Text("This older feed post has no saved route.", color = Pr.muted)
             }
         }
+        if (post.maxSpeedMph <= 0 && post.rideScore == null && post.turnCount == null) {
+            Text(
+                "Telemetry was not included when this ride was posted. Ask the rider to repost it from the current PackRide version.",
+                color = Pr.muted,
+                fontSize = 12.sp,
+                modifier = Modifier.fillMaxWidth().background(Pr.cardBg).padding(horizontal = 16.dp, vertical = 10.dp)
+            )
+        }
         Row(Modifier.fillMaxWidth().background(Pr.cardBg).padding(vertical = 18.dp)) {
             FeedDetailStat(
                 Modifier.weight(1f),
@@ -1096,7 +1106,9 @@ private fun FeedCommentsDialog(
     post: FeedPost,
     comments: List<FeedComment>,
     draft: String,
+    currentAvatarURL: String,
     onDraftChange: (String) -> Unit,
+    isMyComment: (FeedComment) -> Boolean,
     canDeleteComment: (FeedComment) -> Boolean,
     onPost: () -> Unit,
     onDeleteComment: (FeedComment, (String?) -> Unit) -> Unit,
@@ -1136,7 +1148,13 @@ private fun FeedCommentsDialog(
                     ) {
                         items(comments, key = { it.id }) { c ->
                             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-                                PrAvatar(initials = c.userName.rideInitials(), size = 38.dp)
+                                PrAvatar(
+                                    initials = c.userName.rideInitials(),
+                                    size = 38.dp,
+                                    photoUrl = c.avatarURL.ifBlank {
+                                        if (isMyComment(c)) currentAvatarURL else ""
+                                    }
+                                )
                                 Spacer(Modifier.width(10.dp))
                                 Column(Modifier.weight(1f)) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
