@@ -1,6 +1,8 @@
 package com.karthik.packride.badges
 
 import com.karthik.packride.analytics.RideAnalyticsEngine
+import com.karthik.packride.data.MeasurementSystem
+import com.karthik.packride.data.MeasurementUnits
 import com.karthik.packride.gpx.GPXStorage
 import com.karthik.packride.ride.RideRecord
 import java.io.File
@@ -42,7 +44,11 @@ data class Badge(
             val cur = numberString(current)
             val tgt = numberString(target)
             return when (kind) {
-                BadgeValueKind.MILES -> "$cur / $tgt mi"
+                BadgeValueKind.MILES -> if (MeasurementUnits.current == MeasurementSystem.METRIC) {
+                    "${numberString(current * 1.609344)} / ${numberString(target * 1.609344)} km"
+                } else {
+                    "$cur / $tgt mi"
+                }
                 BadgeValueKind.DEGREES -> "$cur / $tgt°"
                 BadgeValueKind.DAYS -> "$cur / $tgt days"
                 BadgeValueKind.SCORE, BadgeValueKind.COUNT -> "$cur / $tgt"

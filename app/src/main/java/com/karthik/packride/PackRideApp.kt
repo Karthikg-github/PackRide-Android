@@ -127,6 +127,12 @@ class PackRideApp : Application() {
                 val code = "AND-${shortCrashCode(raw)}"
                 val summary = raw.lineSequence().take(18).joinToString("\n").take(4_000)
                 val packageInfo = packageManager.getPackageInfo(packageName, 0)
+                val buildNumber = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    packageInfo.longVersionCode
+                } else {
+                    @Suppress("DEPRECATION")
+                    packageInfo.versionCode.toLong()
+                }
                 val payload = mapOf(
                     "senderUID" to user.uid,
                     "senderName" to "PackRide crash reporter",
@@ -135,7 +141,7 @@ class PackRideApp : Application() {
                     "type" to "automatic_crash",
                     "errorCode" to code,
                     "appVersion" to (packageInfo.versionName ?: "unknown"),
-                    "appBuild" to packageInfo.longVersionCode.toString(),
+                    "appBuild" to buildNumber.toString(),
                     "message" to "Automatic crash report $code. Match the authenticated Firebase UID, app build, and report time in Crashlytics.\n\n$summary",
                     "createdAt" to ServerValue.TIMESTAMP
                 )
