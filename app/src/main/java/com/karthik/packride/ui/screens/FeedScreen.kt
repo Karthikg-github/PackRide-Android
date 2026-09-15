@@ -128,6 +128,7 @@ import java.util.Locale
 //    equivalent rather than a real gap.
 
 private enum class FeedMode { Feed, Mine, MyLaps }
+private enum class FeedAudience { Everyone, Following }
 
 @Composable
 fun FeedScreen(auth: AuthManager) {
@@ -145,6 +146,16 @@ fun FeedScreen(auth: AuthManager) {
     val blockedRiders by moderation.blockedRiders.collectAsState()
 
     var mode by remember { mutableStateOf(FeedMode.Feed) }
+    val feedPreferences = remember { context.getSharedPreferences("packride_feed", Context.MODE_PRIVATE) }
+    var audience by remember {
+        mutableStateOf(
+            if (feedPreferences.getString("audience", "everyone") == "following") {
+                FeedAudience.Following
+            } else {
+                FeedAudience.Everyone
+            }
+        )
+    }
     var commentsFor by remember { mutableStateOf<FeedPost?>(null) }
     var draft by remember { mutableStateOf("") }
 
@@ -152,8 +163,8 @@ fun FeedScreen(auth: AuthManager) {
     val myInitials = remember(auth.prefsSnapshot.riderName) { auth.prefsSnapshot.riderName.rideInitials() }
 
     LaunchedEffect(Unit) { friends.start(); moderation.start() }
-    LaunchedEffect(following, blockedRiders) {
-        feed.listenForFeed(friends.followingIds(), blockedRiders.map { it.id }.toSet())
+    LaunchedEffect(blockedRiders) {
+        feed.listenForFeed(blockedRiders.map { it.id }.toSet())
     }
     LaunchedEffect(commentsFor?.id) { commentsFor?.let { feed.listenForComments(it.id) } }
 
@@ -166,7 +177,13 @@ fun FeedScreen(auth: AuthManager) {
     }
 
     val displayedPosts = when (mode) {
-        FeedMode.Feed -> posts.filter { !it.isLapSession }
+        FeedMode.Feed -> {
+            val followedAndMine = friends.followingIds().toSet() + feed.myKnownIDs
+            posts.filter {
+                !it.isLapSession &&
+                    (audience == FeedAudience.Everyone || it.authorID in followedAndMine)
+            }
+        }
         FeedMode.Mine -> posts.filter { feed.myKnownIDs.contains(it.authorID) && !it.isLapSession }
         FeedMode.MyLaps -> posts.filter { feed.myKnownIDs.contains(it.authorID) && it.isLapSession }
     }
@@ -174,9 +191,20 @@ fun FeedScreen(auth: AuthManager) {
     Column(Modifier.fillMaxSize().background(Pr.bg)) {
         FeedHeaderBar(
             initials = myInitials,
-            onRefresh = { feed.listenForFeed(friends.followingIds()) }
+            onRefresh = { feed.listenForFeed(blockedRiders.map { it.id }.toSet()) }
         )
         FeedModeToggle(mode = mode, onSelect = { mode = it })
+        if (mode == FeedMode.Feed) {
+            FeedAudienceToggle(
+                audience = audience,
+                onSelect = {
+                    audience = it
+                    feedPreferences.edit()
+                        .putString("audience", if (it == FeedAudience.Everyone) "everyone" else "following")
+                        .apply()
+                }
+            )
+        }
 
         error?.let {
             Text(
@@ -357,6 +385,40 @@ private fun FeedModeToggle(mode: FeedMode, onSelect: (FeedMode) -> Unit) {
     }
 }
 
+@Composable
+private fun FeedAudienceToggle(audience: FeedAudience, onSelect: (FeedAudience) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Pr.cardBg)
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        listOf(
+            FeedAudience.Everyone to "Everyone",
+            FeedAudience.Following to "Following"
+        ).forEach { (value, label) ->
+            val selected = audience == value
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(if (selected) Pr.coral else Pr.fieldBg)
+                    .clickable { onSelect(value) }
+                    .padding(vertical = 10.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    label,
+                    color = if (selected) Color.White else Pr.ink,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+    }
+}
+
 // MARK: - Empty state
 
 @Composable
@@ -367,7 +429,7 @@ private fun FeedEmptyState(mode: FeedMode, modifier: Modifier = Modifier) {
         FeedMode.MyLaps -> "No lap sessions posted yet"
     }
     val subtitle = when (mode) {
-        FeedMode.Feed -> "Follow riders in Friends to see their rides here."
+        FeedMode.Feed -> "Public rides posted by the Pack will appear here."
         FeedMode.Mine -> "Finish a ride and choose \"Post to Feed\" to share it, or share a past ride from Ride History."
         FeedMode.MyLaps -> "Finish a Track Mode session and choose \"Post to Feed\" to share your lap times here."
     }

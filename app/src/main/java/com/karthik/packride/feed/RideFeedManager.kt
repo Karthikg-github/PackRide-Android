@@ -16,7 +16,9 @@ import kotlinx.coroutines.flow.asStateFlow
 
 /**
  * Ride feed — port of iOS RideFeedManager (feedPosts RTDB).
- * Client pulls last 100 posts and filters to self + following.
+ * Client pulls the latest public posts. Audience selection (Everyone versus
+ * Following) is a presentation choice in FeedScreen; blocked riders are
+ * always removed here so changing the selector cannot bypass moderation.
  */
 class RideFeedManager(context: Context) {
     private val appContext = context.applicationContext
@@ -62,18 +64,17 @@ class RideFeedManager(context: Context) {
             return ids
         }
 
-    fun listenForFeed(followingIDs: List<String>, blockedIDs: Set<String> = emptySet()) {
+    fun listenForFeed(blockedIDs: Set<String> = emptySet()) {
         stopListening()
         if (myID.isEmpty()) return
         _isLoading.value = true
-        val allowed = (followingIDs + myID).toSet()
         val query = db.child("feedPosts").limitToLast(100)
         val l = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val loaded = mutableListOf<FeedPost>()
                 for (child in snapshot.children) {
                     val post = parsePost(child) ?: continue
-                    if (post.authorID in allowed && post.authorID !in blockedIDs) loaded.add(post)
+                    if (post.authorID !in blockedIDs) loaded.add(post)
                 }
                 loaded.sortByDescending { it.timestamp }
                 _posts.value = loaded
