@@ -119,6 +119,9 @@ class RideFeedManager(context: Context) {
         authorName: String,
         authorInitials: String,
         route: List<FeedRoutePoint> = emptyList(),
+        maxSpeedMph: Double = 0.0,
+        rideScore: Int? = null,
+        turnCount: Int? = null,
         isAnonymous: Boolean = false,
         photoUri: Uri? = null,
         onDone: (success: Boolean, message: String?) -> Unit
@@ -145,6 +148,9 @@ class RideFeedManager(context: Context) {
         if (route.isNotEmpty()) {
             data["route"] = route.map { mapOf("lat" to it.lat, "lng" to it.lng) }
         }
+        if (maxSpeedMph > 0) data["maxSpeedMph"] = maxSpeedMph
+        rideScore?.let { data["rideScore"] = it }
+        turnCount?.let { data["turnCount"] = it }
 
         fun writePost(warning: String?) {
             db.child("feedPosts").child(postID).setValue(data)
@@ -318,7 +324,10 @@ class RideFeedManager(context: Context) {
             trackName = data["trackName"] as? String ?: "",
             lapTimes = lapTimes,
             bestLapTime = (data["bestLapTime"] as? Number)?.toDouble() ?: 0.0,
-            isAnonymous = data["isAnonymous"] as? Boolean ?: false
+            isAnonymous = data["isAnonymous"] as? Boolean ?: false,
+            maxSpeedMph = (data["maxSpeedMph"] as? Number)?.toDouble() ?: 0.0,
+            rideScore = (data["rideScore"] as? Number)?.toInt(),
+            turnCount = (data["turnCount"] as? Number)?.toInt()
         )
     }
 }

@@ -464,16 +464,31 @@ fun RideHistoryScreen(auth: AuthManager? = null, onOpenReplay: () -> Unit = {}) 
             },
             confirmButton = {
                 TextButton(onClick = {
-                    feed.postRide(
-                        context = context,
-                        title = title,
-                        distanceMiles = ride.distanceMiles,
-                        duration = ride.durationFormatted,
-                        authorName = auth?.prefsSnapshot?.riderName ?: "Rider",
-                        authorInitials = (auth?.prefsSnapshot?.riderName ?: "Rider").rideInitials(),
-                        photoUri = selectedPhotoUri,
-                        onDone = { _, _ -> }
-                    )
+                    scope.launch {
+                        val filename = history.resolveGpx(ride)
+                        val file = filename?.let { GPXStorage.resolve(context.filesDir, it) }
+                        val points = withContext(Dispatchers.Default) {
+                            file?.let { com.karthik.packride.replay.GpxPointParser.parse(it) }.orEmpty()
+                        }
+                        val analytics = withContext(Dispatchers.Default) { file?.let { RideAnalyticsEngine.analyze(it) } }
+                        val step = maxOf(1, points.size / 120)
+                        val route = points.filterIndexed { index, _ -> index % step == 0 }
+                            .map { com.karthik.packride.feed.FeedRoutePoint(it.lat, it.lng) }
+                        feed.postRide(
+                            context = context,
+                            title = title,
+                            distanceMiles = ride.distanceMiles,
+                            duration = ride.durationFormatted,
+                            authorName = auth?.prefsSnapshot?.riderName ?: "Rider",
+                            authorInitials = (auth?.prefsSnapshot?.riderName ?: "Rider").rideInitials(),
+                            route = route,
+                            maxSpeedMph = ride.maxSpeedMph,
+                            rideScore = analytics?.rideScore,
+                            turnCount = analytics?.cornerCount,
+                            photoUri = selectedPhotoUri,
+                            onDone = { _, _ -> }
+                        )
+                    }
                     postTarget = null
                 }) { Text("Post") }
             },

@@ -30,6 +30,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Comment
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
@@ -127,7 +128,7 @@ import java.util.Locale
 //    updates on its own), so the Refresh icon is a deliberate, simpler
 //    equivalent rather than a real gap.
 
-private enum class FeedMode { Feed, Mine, MyLaps }
+private enum class FeedMode { Feed, Favorites, Mine, MyLaps }
 private enum class FeedAudience { Everyone, Following }
 
 @Composable
@@ -157,6 +158,7 @@ fun FeedScreen(auth: AuthManager) {
         )
     }
     var commentsFor by remember { mutableStateOf<FeedPost?>(null) }
+    var detailPost by remember { mutableStateOf<FeedPost?>(null) }
     var draft by remember { mutableStateOf("") }
 
     val dateFmt = remember { SimpleDateFormat("M/d/yy • h:mm a", Locale.getDefault()) }
@@ -186,6 +188,12 @@ fun FeedScreen(auth: AuthManager) {
         }
         FeedMode.Mine -> posts.filter { feed.myKnownIDs.contains(it.authorID) && !it.isLapSession }
         FeedMode.MyLaps -> posts.filter { feed.myKnownIDs.contains(it.authorID) && it.isLapSession }
+        FeedMode.Favorites -> posts.filter { it.bookmarkedByMe && !it.isLapSession }
+    }
+
+    detailPost?.let { selected ->
+        FeedRideDetail(post = selected, onBack = { detailPost = null })
+        return
     }
 
     Column(Modifier.fillMaxSize().background(Pr.bg)) {
@@ -274,7 +282,8 @@ fun FeedScreen(auth: AuthManager) {
                                 onOpenComments = {
                                     draft = ""
                                     commentsFor = post
-                                }
+                                },
+                                onOpenRide = { detailPost = post }
                             )
                         }
                     }
@@ -356,6 +365,7 @@ private fun FeedModeToggle(mode: FeedMode, onSelect: (FeedMode) -> Unit) {
         ) {
             listOf(
                 FeedMode.Feed to "Ride Feed",
+                FeedMode.Favorites to "Saved",
                 FeedMode.Mine to "My Rides",
                 FeedMode.MyLaps to "My Laps"
             ).forEach { (m, label) ->
@@ -425,11 +435,13 @@ private fun FeedAudienceToggle(audience: FeedAudience, onSelect: (FeedAudience) 
 private fun FeedEmptyState(mode: FeedMode, modifier: Modifier = Modifier) {
     val title = when (mode) {
         FeedMode.Feed -> "No rides yet"
+        FeedMode.Favorites -> "No saved rides"
         FeedMode.Mine -> "You haven't posted any rides"
         FeedMode.MyLaps -> "No lap sessions posted yet"
     }
     val subtitle = when (mode) {
         FeedMode.Feed -> "Public rides posted by the Pack will appear here."
+        FeedMode.Favorites -> "Tap the bookmark on a ride to save its route here."
         FeedMode.Mine -> "Finish a ride and choose \"Post to Feed\" to share it, or share a past ride from Ride History."
         FeedMode.MyLaps -> "Finish a Track Mode session and choose \"Post to Feed\" to share your lap times here."
     }
@@ -577,7 +589,8 @@ private fun FeedPostCard(
     onDelete: ((String?) -> Unit) -> Unit,
     onReport: (String, (String?) -> Unit) -> Unit,
     onBlock: ((String?) -> Unit) -> Unit,
-    onOpenComments: () -> Unit
+    onOpenComments: () -> Unit,
+    onOpenRide: () -> Unit
 ) {
     val context = LocalContext.current
     var showDeleteConfirm by remember { mutableStateOf(false) }
@@ -678,13 +691,13 @@ private fun FeedPostCard(
                 model = post.photoURL,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxWidth().height(240.dp)
+                modifier = Modifier.fillMaxWidth().height(240.dp).clickable(onClick = onOpenRide)
             )
         } else if (post.route.size >= 2) {
-            FeedRoutePreviewMap(
-                route = post.route,
-                modifier = Modifier.fillMaxWidth().height(200.dp)
-            )
+            Box(Modifier.fillMaxWidth().height(200.dp)) {
+                FeedRoutePreviewMap(route = post.route, modifier = Modifier.fillMaxSize())
+                Box(Modifier.fillMaxSize().clickable(onClick = onOpenRide))
+            }
         }
 
         Box(Modifier.fillMaxWidth().height(1.dp).background(Pr.border))
@@ -794,6 +807,68 @@ private fun FeedPostCard(
             text = { Text(msg) },
             confirmButton = { TextButton(onClick = { deleteError = null }) { Text("OK") } }
         )
+    }
+}
+
+@Composable
+private fun FeedRideDetail(post: FeedPost, onBack: () -> Unit) {
+    val points = remember(post.route) { post.route.map { LatLng(it.lat, it.lng) } }
+    val camera = rememberCameraPositionState {
+        position = CameraPosition.fromLatLngZoom(points.firstOrNull() ?: LatLng(0.0, 0.0), 13f)
+    }
+    LaunchedEffect(points) {
+        if (points.size > 1) {
+            val bounds = LatLngBounds.Builder().apply { points.forEach { include(it) } }.build()
+            runCatching { camera.animate(CameraUpdateFactory.newLatLngBounds(bounds, 72)) }
+        }
+    }
+    Column(Modifier.fillMaxSize().background(Pr.bg)) {
+        Row(
+            Modifier.fillMaxWidth().background(Pr.cardBg).padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(Modifier.clip(CircleShape).clickable(onClick = onBack).padding(10.dp)) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = Pr.ink)
+            }
+            Spacer(Modifier.width(8.dp))
+            Column {
+                Text(post.title, color = Pr.ink, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                Text("${post.authorName} · ${post.distanceString}", color = Pr.muted, fontSize = 13.sp)
+            }
+        }
+        if (points.size > 1) {
+            GoogleMap(
+                modifier = Modifier.fillMaxWidth().weight(1f),
+                cameraPositionState = camera,
+                properties = MapProperties(mapType = MapType.HYBRID),
+                uiSettings = MapUiSettings(zoomControlsEnabled = false, mapToolbarEnabled = false)
+            ) {
+                Polyline(points = points, color = Pr.coral, width = 7f)
+                Marker(MarkerState(points.first()), title = "Start")
+                Marker(MarkerState(points.last()), title = "Finish")
+            }
+        } else {
+            Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+                Text("This older feed post has no saved route.", color = Pr.muted)
+            }
+        }
+        Row(Modifier.fillMaxWidth().background(Pr.cardBg).padding(vertical = 18.dp)) {
+            FeedDetailStat(
+                Modifier.weight(1f),
+                if (post.maxSpeedMph > 0) com.karthik.packride.data.MeasurementUnits.speedMph(post.maxSpeedMph) else "—",
+                "Top Speed"
+            )
+            FeedDetailStat(Modifier.weight(1f), post.rideScore?.toString() ?: "—", "Ride Score")
+            FeedDetailStat(Modifier.weight(1f), post.turnCount?.toString() ?: "—", "Turns")
+        }
+    }
+}
+
+@Composable
+private fun FeedDetailStat(modifier: Modifier, value: String, label: String) {
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(value, color = Pr.ink, fontSize = 20.sp, fontWeight = FontWeight.Black)
+        Text(label, color = Pr.muted, fontSize = 11.sp, fontWeight = FontWeight.Bold)
     }
 }
 

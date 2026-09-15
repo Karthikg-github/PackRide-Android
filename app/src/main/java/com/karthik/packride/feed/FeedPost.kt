@@ -29,7 +29,10 @@ data class FeedPost(
     val trackName: String = "",
     val lapTimes: List<Double> = emptyList(),
     val bestLapTime: Double = 0.0,
-    val isAnonymous: Boolean = false
+    val isAnonymous: Boolean = false,
+    val maxSpeedMph: Double = 0.0,
+    val rideScore: Int? = null,
+    val turnCount: Int? = null
 ) {
     val distanceString: String get() = com.karthik.packride.data.MeasurementUnits.distanceMiles(distanceMiles)
 }
