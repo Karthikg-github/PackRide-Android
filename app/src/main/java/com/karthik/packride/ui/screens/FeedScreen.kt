@@ -47,6 +47,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -64,6 +65,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
@@ -1102,62 +1105,76 @@ private fun FeedCommentsDialog(
     var commentPendingDelete by remember(post.id) { mutableStateOf<FeedComment?>(null) }
     var deleteCommentError by remember(post.id) { mutableStateOf<String?>(null) }
 
-    AlertDialog(
+    Dialog(
         onDismissRequest = onDismiss,
-        title = { Text(post.title) },
-        text = {
-            Column(
-                modifier = Modifier
-                    .heightIn(max = 320.dp)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
+        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)
+    ) {
+        Surface(Modifier.fillMaxSize(), color = Pr.bg) {
+            Column(Modifier.fillMaxSize()) {
+                Row(
+                    Modifier.fillMaxWidth().background(Pr.cardBg).padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(Modifier.clip(CircleShape).clickable(onClick = onDismiss).padding(10.dp)) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = Pr.ink)
+                    }
+                    Spacer(Modifier.width(10.dp))
+                    Column {
+                        Text("Comments", color = Pr.ink, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                        Text(post.title, color = Pr.muted, fontSize = 12.sp, maxLines = 1)
+                    }
+                }
                 if (comments.isEmpty()) {
-                    Text("No comments yet", color = Pr.muted, fontSize = 13.sp)
+                    Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        Text("No comments yet\nStart the conversation.", color = Pr.muted, textAlign = TextAlign.Center)
+                    }
                 } else {
-                    comments.forEach { c ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.Top
-                        ) {
-                            Column(Modifier.weight(1f)) {
-                                Text(c.userName, color = Pr.ink, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                                Text(c.text, color = Pr.ink, fontSize = 14.sp)
-                            }
-                            if (canDeleteComment(c)) {
-                                Box(
-                                    modifier = Modifier
-                                        .clip(CircleShape)
-                                        .clickable { commentPendingDelete = c }
-                                        .padding(4.dp)
-                                ) {
-                                    Icon(
-                                        Icons.Default.Delete,
-                                        contentDescription = "Delete comment",
-                                        tint = Pr.muted,
-                                        modifier = Modifier.size(14.dp)
-                                    )
+                    LazyColumn(
+                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        items(comments, key = { it.id }) { c ->
+                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                                PrAvatar(initials = c.userName.rideInitials(), size = 38.dp)
+                                Spacer(Modifier.width(10.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(c.userName, color = Pr.ink, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                        Spacer(Modifier.width(8.dp))
+                                        Text(commentAge(c.timestamp), color = Pr.muted, fontSize = 11.sp)
+                                    }
+                                    Spacer(Modifier.height(3.dp))
+                                    Text(c.text, color = Pr.ink, fontSize = 15.sp)
+                                }
+                                if (canDeleteComment(c)) {
+                                    Box(Modifier.clip(CircleShape).clickable { commentPendingDelete = c }.padding(8.dp)) {
+                                        Icon(Icons.Default.Delete, "Delete comment", tint = Pr.muted, modifier = Modifier.size(16.dp))
+                                    }
                                 }
                             }
                         }
                     }
                 }
-                OutlinedTextField(
-                    value = draft,
-                    onValueChange = onDraftChange,
-                    label = { Text("Add a comment") },
-                    modifier = Modifier.fillMaxWidth()
-                )
+                Row(
+                    Modifier.fillMaxWidth().background(Pr.cardBg).padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedTextField(
+                        value = draft,
+                        onValueChange = onDraftChange,
+                        placeholder = { Text("Write a comment…") },
+                        modifier = Modifier.weight(1f),
+                        maxLines = 4
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    TextButton(onClick = onPost, enabled = draft.isNotBlank()) {
+                        Text("Post", color = if (draft.isNotBlank()) Pr.coral else Pr.muted, fontWeight = FontWeight.Bold)
+                    }
+                }
             }
-        },
-        confirmButton = {
-            TextButton(onClick = onPost, enabled = draft.isNotBlank()) { Text("Post") }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Close") }
         }
-    )
+    }
 
     commentPendingDelete?.let { comment ->
         AlertDialog(
@@ -1181,6 +1198,17 @@ private fun FeedCommentsDialog(
             text = { Text(msg) },
             confirmButton = { TextButton(onClick = { deleteCommentError = null }) { Text("OK") } }
         )
+    }
+}
+
+private fun commentAge(timestamp: Double): String {
+    val seconds = ((System.currentTimeMillis() / 1000.0) - timestamp).toLong().coerceAtLeast(0)
+    return when {
+        seconds < 60 -> "now"
+        seconds < 3600 -> "${seconds / 60}m"
+        seconds < 86_400 -> "${seconds / 3600}h"
+        seconds < 604_800 -> "${seconds / 86_400}d"
+        else -> "${seconds / 604_800}w"
     }
 }
 
